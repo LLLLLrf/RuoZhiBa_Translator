@@ -1,7 +1,8 @@
 import json
 import pandas as pd
 from torch.utils.data import Dataset
-import numpy as np
+import tqdm
+
 
 class rzbDataset(Dataset):
 
@@ -17,10 +18,11 @@ class rzbDataset(Dataset):
         Object: Dataset
     """
 
-    def __init__(self, folder_path, k, mode=["train", "val", "test"]):
+    def __init__(self, folder_path, k, mode=["train", "val", "test"], method=lambda x: x):
         super().__init__()
         self.k = k
         self.mode = mode
+        self.method = method
         self.folder_path = folder_path + \
             "/" if folder_path[-1] != "/" else folder_path
         self.data = self.__load_data()
@@ -32,38 +34,33 @@ class rzbDataset(Dataset):
         dic = self.data.loc[index].to_dict()
         return dic
 
-
     def __load_data(self):
         data = pd.DataFrame(columns=["original", "annotated"])
-        if self.mode == "test":
-            train_file_path = self.folder_path + \
-                "train_fold_" + str(self.k) + ".json"
-            val_file_path = self.folder_path + \
-                "val_fold_" + str(self.k) + ".json"
-            data = pd.concat([self.__pd_from_json(train_file_path), self.__pd_from_json(
-                val_file_path)], ignore_index=True)
-        else:
-            for i in range(1, 11):
-                if i == self.k:
-                    continue
-                file_path = self.folder_path + \
-                    self.mode+"_fold_" + str(i) + ".json"
-                data = pd.concat(
-                    [data, self.__pd_from_json(file_path)], ignore_index=True)
+        file_path = self.folder_path + \
+            self.mode+"/fold_" + str(self.k) + ".json"
+        print("[INFO] Load '"+file_path+"' dataset...")
+        data = pd.concat(
+            [data, self.__pd_from_json(file_path)], ignore_index=True)
 
         return data
 
     def __pd_from_json(self, path):
-        # print(path)
         data_dict = []
         with open(path, 'r', encoding='utf-8') as f:
             data = json.load(f)
-            for sample in data:
+            # for sample in data:
+            for idx in tqdm.tqdm(range(len(data))):
+                sample = data[idx]
                 for result in sample.keys():
                     if result[0] != "a":
                         continue
                     col = [sample["original_data"],
                            sample[result]]
-                    data_dict.append(col)
+                    data_dict.append(self.__pre_process(col))
             f.close()
         return pd.DataFrame(data_dict, columns=["original", "annotated"])
+
+    def __pre_process(self, col: list):
+        for i in range(len(col)):
+            col[i] = self.method(col[i])
+        return col

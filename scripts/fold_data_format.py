@@ -19,15 +19,15 @@ if not os.path.exists(val_path):
 if not os.path.exists(test_path):
     os.makedirs(test_path)
 
-for i in range(10):
+for i in range(9):
     train = []
     for j in range(8):
-        train += data[(i+j) % 10]
+        train += data[(i+j) % 9]
     with open(train_path+"fold_"+str(i)+".json", 'w', encoding='utf-8') as f:
         json.dump(train, f, ensure_ascii=False)
-    val = data[(i+8) % 10]
-    test = data[(i+9) % 10]
+    val = data[(i+8) % 9]
     with open(val_path+"fold_"+str(i)+".json", 'w', encoding='utf-8') as f:
         json.dump(val, f, ensure_ascii=False)
-    with open(test_path+"fold_"+str(i)+".json", 'w', encoding='utf-8') as f:
-        json.dump(test, f, ensure_ascii=False)
+test = data[9]
+with open(test_path+"test.json", 'w', encoding='utf-8') as f:
+    json.dump(test, f, ensure_ascii=False)

@@ -18,8 +18,9 @@ class rzbDataset(Dataset):
         Object: Dataset
     """
 
-    def __init__(self, folder_path, k, mode=["train", "val", "test"], method=lambda x: x):
+    def __init__(self, folder_path, k=-1, mode=["train", "val", "test"], method=lambda x: x):
         super().__init__()
+        assert mode == "test" or k >= 0
         self.k = k
         self.mode = mode
         self.method = method
@@ -38,6 +39,9 @@ class rzbDataset(Dataset):
         data = pd.DataFrame(columns=["original", "annotated"])
         file_path = self.folder_path + \
             self.mode+"/fold_" + str(self.k) + ".json"
+        if self.mode == "test":
+            file_path = self.folder_path + \
+                self.mode+"/test.json"
         print("[INFO] Load '"+file_path+"' dataset...")
         data = pd.concat(
             [data, self.__pd_from_json(file_path)], ignore_index=True)
@@ -48,7 +52,6 @@ class rzbDataset(Dataset):
         data_dict = []
         with open(path, 'r', encoding='utf-8') as f:
             data = json.load(f)
-            # for sample in data:
             for idx in tqdm.tqdm(range(len(data))):
                 sample = data[idx]
                 for result in sample.keys():

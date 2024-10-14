@@ -1,7 +1,7 @@
 import json
 import pandas as pd
 from torch.utils.data import Dataset
-
+import numpy as np
 
 class rzbDataset(Dataset):
 
@@ -29,7 +29,9 @@ class rzbDataset(Dataset):
         return len(self.data)
 
     def __getitem__(self, index):
-        return self.data.loc[index]
+        dic = self.data.loc[index].to_dict()
+        return dic
+
 
     def __load_data(self):
         data = pd.DataFrame(columns=["original", "annotated"])
@@ -52,7 +54,7 @@ class rzbDataset(Dataset):
         return data
 
     def __pd_from_json(self, path):
-        print(path)
+        # print(path)
         data_dict = []
         with open(path, 'r', encoding='utf-8') as f:
             data = json.load(f)

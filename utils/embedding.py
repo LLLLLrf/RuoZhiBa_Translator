@@ -13,3 +13,20 @@ class Embedding:
 
     def encode(self, words: list):
         return self.model.encode(words)
+        
+import numpy
+if __name__ == "__main__":
+    embedding = Embedding()
+    lst=[]
+    test_list=[["你好我","是一个" ,"人"],["你好","我是", "一个人"], ['这是一', '段', '测试', '文本', ',', '用于', '查看', '分词', '效果']]
+    for i in test_list:
+        lst.extend(embedding.encode(i))
+    zero=[]
+    for i, vec in enumerate(lst):
+        i = numpy.array(i)
+        if numpy.unique(vec).shape[0] == 1:
+            zero.append(i)
+    test_list = [j for i in test_list for j in i]
+    for i in zero:
+        print(test_list[i])
+        

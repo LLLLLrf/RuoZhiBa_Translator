@@ -36,6 +36,7 @@ def main():
 def pre_process(text):
     tokenizer = Tokenizer()
     token = tokenizer.encode_as_pieces(text)
+    token = Embedding().encode(token)
     return token
 
 

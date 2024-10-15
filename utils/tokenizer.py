@@ -18,3 +18,5 @@ if __name__ == "__main__":
     print(tokenizer.decode_pieces(
         ['你', '好', '是', '一', '个', '汉', '语', '词', '语']))
     print(tokenizer.decode_ids([2116, 26848, 93, 2888, 1665]))
+
+    print(tokenizer.encode_as_pieces("这是一段测试文本，用于查看分词效果"))

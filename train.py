@@ -16,13 +16,19 @@ def main():
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
     criterion = nn.MSELoss()
 
-    test_dataset = rzbDataset("data", mode="test")
+    tokenizer = Tokenizer()
+    embedding = Embedding()
+
+    test_dataset = rzbDataset(
+        "data", mode="test", method=lambda x: pre_process(x, tokenizer, embedding))
     test_dataloader = DataLoader(
         test_dataset, batch_size, shuffle=True, num_workers=num_workers)
 
     for k in range(9):
-        train_dataset = rzbDataset("data", k, mode="train", method=pre_process)
-        val_dataset = rzbDataset("data", k, mode="val")
+        train_dataset = rzbDataset(
+            "data", k, mode="train", method=lambda x: pre_process(x, tokenizer, embedding))
+        val_dataset = rzbDataset(
+            "data", k, mode="val", method=lambda x: pre_process(x, tokenizer, embedding))
 
         train_dataloader = DataLoader(
             train_dataset, batch_size, shuffle=True, num_workers=num_workers)
@@ -33,10 +39,9 @@ def main():
               val_dataloader, optimizer, criterion)
 
 
-def pre_process(text):
-    tokenizer = Tokenizer()
+def pre_process(text, tokenizer, embedding):
     token = tokenizer.encode_as_pieces(text)
-    return token
+    return embedding.encode(token)
 
 
 def load_model(model_name):

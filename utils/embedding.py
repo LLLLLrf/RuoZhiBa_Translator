@@ -5,14 +5,17 @@
 # 暂时选用中文词向量模型(word2vec)，后续再改
 
 from text2vec import Word2Vec
+from text2vec import SentenceModel
 
 
 class Embedding:
     def __init__(self):
-        self.model = Word2Vec("w2v-light-tencent-chinese")
+        # self.model = Word2Vec("w2v-light-tencent-chinese")
+        self.model = SentenceModel("shibing624/text2vec-base-chinese")
 
     def encode(self, words: list):
         return self.model.encode(words)
+<<<<<<< HEAD
         
 import numpy
 if __name__ == "__main__":
@@ -30,3 +33,21 @@ if __name__ == "__main__":
     for i in zero:
         print(test_list[i])
         
+=======
+
+    def decode(self, vectors):
+        return self.model.decode(vectors)
+
+
+if __name__ == "__main__":
+    # model = Embedding()
+    # a = model.encode(['你好', '是', '一个', '汉语', '词语'])
+    # print(a)
+    # print(model.decode(a))
+
+    # 中文句向量模型(CoSENT)，中文语义匹配任务推荐，支持fine-tune继续训练
+    t2v_model = SentenceModel("shibing624/text2vec-base-chinese")
+    b = t2v_model.encode(['你好', '是', '一个', '汉语', '词语'])
+    # b = t2v_model.encode(['你好是一个汉语词语'])
+    print(b)
+>>>>>>> c2ffc574fffc6b31f4c4517fdd8c3617c20bf466

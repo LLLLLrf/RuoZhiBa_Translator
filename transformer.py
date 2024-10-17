@@ -1,3 +1,4 @@
+import datetime
 from tqdm import tqdm
 import torch
 from transformers import get_scheduler
@@ -7,10 +8,13 @@ from utils.rzbDataset import rzbDataset
 from torch.utils.data import DataLoader
 from datasets import Dataset
 import evaluate
+import pandas as pd
+
+now = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
 
 # Parameters
 model_name = "google/mt5-base"
-fold_nums = 9
+fold_nums = 10
 num_epochs = 100
 max_length = 128
 batch_size = 8
@@ -27,17 +31,23 @@ model.to(device)
 def tokenize_function(sample):
     model_input = tokenizer(
         sample["original"], max_length=max_length, truncation=True, padding="max_length")
-    labels = tokenizer(sample["annotated"], max_length=max_length,
-                       truncation=True, padding="max_length")
-    model_input["labels"] = labels["input_ids"]
+    if type(sample["annotated"]) == str:
+        labels = tokenizer(sample["annotated"], max_length=max_length,
+                           truncation=True, padding="max_length")
+        model_input["labels"] = labels["input_ids"]
+    else:
+        labels = [tokenizer(annotated, max_length=max_length, truncation=True,
+                            padding="max_length") for annotated in sample["annotated"]]
+        model_input["labels"] = [label["input_ids"] for label in labels]
     return model_input
 
 
 eval_compute_result = []
+best_result = -1
 
 # K-Fold Cross-Validation
-for k in range(fold_nums):
-    print(f"Fold {k+1} / {fold_nums} ...")
+for k in range(1, fold_nums+1):
+    print(f"Fold {k} / {fold_nums} ...")
 
     train_dataset = rzbDataset(
         "data", k, mode="train")
@@ -58,7 +68,7 @@ for k in range(fold_nums):
     # DataLoader
     train_dataloader = DataLoader(
         tokenized_train_datasets, shuffle=True, batch_size=batch_size)
-    eval_dataloader = DataLoader(tokenized_val_datasets, batch_size=batch_size)
+    # eval_dataloader = DataLoader(tokenized_val_datasets, batch_size=batch_size)
 
     # Optimizer
     optimizer = AdamW(model.parameters(), lr=1e-4)
@@ -91,14 +101,19 @@ for k in range(fold_nums):
     # Evaluate
     metric = evaluate.combine(
         ["rouge", "bleu", "meteor"])
+    dynamic_metric = evaluate.combine(
+        ["rouge", "bleu", "meteor"])
     model.eval()
 
-    for batch in tqdm(eval_dataloader):
+    for batch in tqdm(tokenized_val_datasets):
+        print(batch["labels"][1])
+        exit()
         batch = {
             "input_ids": batch["input_ids"].to(device),
             "attention_mask": batch["attention_mask"].to(device),
             "labels": batch["labels"].to(device),
         }
+
         with torch.no_grad():
             outputs = model(**batch)
 
@@ -106,61 +121,51 @@ for k in range(fold_nums):
         predictions = torch.argmax(logits, dim=-1)
         res = tokenizer.batch_decode(
             predictions, skip_special_tokens=True, clean_up_tokenization_spaces=False)
-        label = tokenizer.batch_decode(
-            batch["labels"], skip_special_tokens=True, clean_up_tokenization_spaces=False)
+        max_label = -1
+        max_score = -1
+        for label in batch["labels"]:
+            decode_label = tokenizer.batch_decode(
+                label, skip_special_tokens=True, clean_up_tokenization_spaces=False)
+            score = dynamic_metric.compute(
+                predictions=res, references=decode_label)
+            if score["meteor"] > max_score:
+                max_score = score["meteor"]
+                max_label = decode_label
         # print(res)
-        # print(label)
-        metric.add_batch(predictions=res, references=label)
+        # print(max_label)
+        metric.add_batch(predictions=res, references=max_label)
 
     eval_compute_result.append(metric.compute())
+    eval_compute_result[-1]["fold"] = k
     print(eval_compute_result[-1])
 
-# Load test dataset
-test_dataset = rzbDataset("data", mode="test")
-test_dataset = Dataset.from_dict(test_dataset.data)
+    # Save model
+    if eval_compute_result[-1]["meteor"] > best_result:
+        best_result = eval_compute_result[-1]["meteor"]
+        model.save_pretrained(
+            f"weights/{model_name.replace('/', '-')}-{now}/best-{now}")
+    model.save_pretrained(
+        f"weights/{model_name.replace('/', '-')}-{now}/last-{now}")
+    print(f"Saved model to weights/{model_name.replace('/', '-')}-{now}")
 
-# Tokenize dataset
-tokenized_test_datasets = test_dataset.map(tokenize_function, batched=True)
+    # Save result
+    df = pd.DataFrame(eval_compute_result, rows=["fold"])
+    df.to_csv(f"results/{model_name.replace('/', '-')}-{now}.csv")
+    print(f"Saved result to results/{model_name.replace('/', '-')}-{now}.csv")
 
-tokenized_test_datasets.set_format(type="torch")
+print(f"Best result: {best_result}")
 
-# DataLoader
-test_dataloader = DataLoader(tokenized_test_datasets, batch_size=batch_size)
-
-# Evaluate
-metric = evaluate.combine(
-    ["rouge", "bleu", "meteor"])
-model.eval()
-
-for batch in tqdm(test_dataloader):
-    batch = {
-        "input_ids": batch["input_ids"].to(device),
-        "attention_mask": batch["attention_mask"].to(device),
-        "labels": batch["labels"].to(device),
-    }
-    with torch.no_grad():
-        outputs = model(**batch)
-
-    logits = outputs.logits
-    predictions = torch.argmax(logits, dim=-1)
-    res = tokenizer.batch_decode(
-        predictions, skip_special_tokens=True, clean_up_tokenization_spaces=False)
-    label = tokenizer.batch_decode(
-        batch["labels"], skip_special_tokens=True, clean_up_tokenization_spaces=False)
-    metric.add_batch(predictions=res, references=label)
-test_result = metric.compute()
-print("Test result:", test_result)
-
-# Save result
-with open("result.txt", "w") as f:
-    f.write("Evaluation result:\n")
-    for i, result in enumerate(eval_compute_result):
-        f.write(f"Fold {i+1}:\n")
-        for key, value in result.items():
-            f.write(f"{key}: {value}\n")
-    f.write("Test result:\n")
-    for key, value in test_result.items():
-        f.write(f"{key}: {value}\n")
-
-# Save model
-model.save_pretrained(f"weights/{model_name.replace("/", "-")}-{fold_nums}fold")
+# Save average result
+avg_result = {}
+for key in eval_compute_result[0].keys():
+    if key == "fold":
+        continue
+    avg_result[key] = sum(
+        [result[key] for result in eval_compute_result]) / len(eval_compute_result)
+avg_result["fold"] = "average"
+print(f"Average result: {avg_result}")
+eval_compute_result.append(avg_result)
+df = pd.DataFrame(eval_compute_result, rows=["fold"])
+df.to_csv(f"results/{model_name.replace('/', '-')}-{now}.csv")
+print(
+    f"Saved average result to results/{model_name.replace('/', '-')}-{now}.csv")

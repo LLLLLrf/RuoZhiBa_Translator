@@ -5,13 +5,15 @@ from torch.optim import AdamW
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 from utils.rzbDataset import rzbDataset
 from torch.utils.data import DataLoader
+from datasets import Dataset
 import evaluate
 
 # Parameters
 model_name = "google/mt5-base"
 fold_nums = 9
-num_epochs = 10
+num_epochs = 100
 max_length = 128
+batch_size = 8
 device = torch.device(
     "cuda") if torch.cuda.is_available() else torch.device("cpu")
 
@@ -42,6 +44,9 @@ for k in range(fold_nums):
     val_dataset = rzbDataset(
         "data", k, mode="val")
 
+    train_dataset = Dataset.from_dict(train_dataset.data)
+    val_dataset = Dataset.from_dict(val_dataset.data)
+
     # Tokenize dataset
     tokenized_train_datasets = train_dataset.map(
         tokenize_function, batched=True)
@@ -52,8 +57,8 @@ for k in range(fold_nums):
 
     # DataLoader
     train_dataloader = DataLoader(
-        tokenized_train_datasets, shuffle=True, batch_size=16)
-    eval_dataloader = DataLoader(tokenized_val_datasets, batch_size=16)
+        tokenized_train_datasets, shuffle=True, batch_size=batch_size)
+    eval_dataloader = DataLoader(tokenized_val_datasets, batch_size=batch_size)
 
     # Optimizer
     optimizer = AdamW(model.parameters(), lr=1e-4)
@@ -85,7 +90,7 @@ for k in range(fold_nums):
 
     # Evaluate
     metric = evaluate.combine(
-        ["rouge", "bleu", "meteor", "bertscore", "accuracy"])
+        ["rouge", "bleu", "meteor"])
     model.eval()
 
     for batch in tqdm(eval_dataloader):
@@ -99,14 +104,20 @@ for k in range(fold_nums):
 
         logits = outputs.logits
         predictions = torch.argmax(logits, dim=-1)
-        metric.add_batch(predictions=predictions.view(-1),
-                         references=batch["labels"].view(-1))
+        res = tokenizer.batch_decode(
+            predictions, skip_special_tokens=True, clean_up_tokenization_spaces=False)
+        label = tokenizer.batch_decode(
+            batch["labels"], skip_special_tokens=True, clean_up_tokenization_spaces=False)
+        # print(res)
+        # print(label)
+        metric.add_batch(predictions=res, references=label)
 
     eval_compute_result.append(metric.compute())
     print(eval_compute_result[-1])
 
 # Load test dataset
 test_dataset = rzbDataset("data", mode="test")
+test_dataset = Dataset.from_dict(test_dataset.data)
 
 # Tokenize dataset
 tokenized_test_datasets = test_dataset.map(tokenize_function, batched=True)
@@ -114,11 +125,11 @@ tokenized_test_datasets = test_dataset.map(tokenize_function, batched=True)
 tokenized_test_datasets.set_format(type="torch")
 
 # DataLoader
-test_dataloader = DataLoader(tokenized_test_datasets, batch_size=16)
+test_dataloader = DataLoader(tokenized_test_datasets, batch_size=batch_size)
 
 # Evaluate
 metric = evaluate.combine(
-    ["rouge", "bleu", "meteor", "bertscore", "accuracy"])
+    ["rouge", "bleu", "meteor"])
 model.eval()
 
 for batch in tqdm(test_dataloader):
@@ -132,10 +143,13 @@ for batch in tqdm(test_dataloader):
 
     logits = outputs.logits
     predictions = torch.argmax(logits, dim=-1)
-    metric.add_batch(predictions=predictions.view(-1),
-                     references=batch["labels"].view(-1))
-
-print("Test result:", metric.compute())
+    res = tokenizer.batch_decode(
+        predictions, skip_special_tokens=True, clean_up_tokenization_spaces=False)
+    label = tokenizer.batch_decode(
+        batch["labels"], skip_special_tokens=True, clean_up_tokenization_spaces=False)
+    metric.add_batch(predictions=res, references=label)
+test_result = metric.compute()
+print("Test result:", test_result)
 
 # Save result
 with open("result.txt", "w") as f:
@@ -145,7 +159,7 @@ with open("result.txt", "w") as f:
         for key, value in result.items():
             f.write(f"{key}: {value}\n")
     f.write("Test result:\n")
-    for key, value in metric.compute().items():
+    for key, value in test_result.items():
         f.write(f"{key}: {value}\n")
 
 # Save model

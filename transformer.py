@@ -120,7 +120,7 @@ for k in range(1, fold_nums+1):
     model.train()
     for epoch in range(num_epochs):
         loss_cnt = 0
-        for batch in tqdm(train_dataloader, desc=f"Epoch {epoch+1} / {num_epochs+1}", position=0):
+        for batch in tqdm(train_dataloader, desc=f"Epoch {epoch+1} / {num_epochs}", position=0):
             batch = {
                 "input_ids": batch["input_ids"].to(device),
                 "attention_mask": batch["attention_mask"].to(device),
@@ -134,7 +134,7 @@ for k in range(1, fold_nums+1):
             lr_scheduler.step()
             optimizer.zero_grad()
         loss_record[-1].append(loss_cnt / len(train_dataloader))
-        print(f"Epoch {epoch} loss: {loss_cnt / len(train_dataloader)}")
+        print(f"Epoch {epoch+1} loss: {loss_cnt / len(train_dataloader)}")
 
     model.eval()
     for batch in tqdm(eval_dataloader, position=0):

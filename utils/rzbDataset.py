@@ -51,20 +51,12 @@ class rzbDataset(Dataset):
             data = json.load(f)
             for idx in tqdm.tqdm(range(len(data))):
                 sample = data[idx]
-                if self.mode == "train":
-                    for result in sample.keys():
-                        if result[0] != "a":
-                            continue
-                        col = [sample["original_data"],
-                               sample[result]]
-                        data_dict.append(self.__pre_process(col))
-                else:
-                    col = [sample["original_data"], []]
-                    for result in sample.keys():
-                        if result[0] != "a":
-                            continue
-                        col[1].append(sample[result])
-                    data_dict.append(col)
+                for result in sample.keys():
+                    if result[0] != "a":
+                        continue
+                    col = [sample["original_data"],
+                           sample[result]]
+                    data_dict.append(self.__pre_process(col))
             f.close()
         return pd.DataFrame(data_dict, columns=["original", "annotated"])
 

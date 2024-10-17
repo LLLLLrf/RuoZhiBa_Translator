@@ -24,19 +24,22 @@ def main():
     test_dataloader = DataLoader(
         test_dataset, batch_size, shuffle=True, num_workers=num_workers)
 
-    for k in range(9):
-        train_dataset = rzbDataset(
-            "data", k, mode="train", method=lambda x: pre_process(x, tokenizer, embedding))
-        val_dataset = rzbDataset(
-            "data", k, mode="val", method=lambda x: pre_process(x, tokenizer, embedding))
+    for step, item in enumerate(test_dataloader):
+        print(item)
 
-        train_dataloader = DataLoader(
-            train_dataset, batch_size, shuffle=True, num_workers=num_workers)
-        val_dataloader = DataLoader(
-            val_dataset, batch_size, shuffle=True, num_workers=num_workers)
+    # for k in range(9):
+    #     train_dataset = rzbDataset(
+    #         "data", k, mode="train", method=lambda x: pre_process(x, tokenizer, embedding))
+    #     val_dataset = rzbDataset(
+    #         "data", k, mode="val", method=lambda x: pre_process(x, tokenizer, embedding))
 
-        train(train_dataloader, epoch, model, batch_size,
-              val_dataloader, optimizer, criterion)
+    #     train_dataloader = DataLoader(
+    #         train_dataset, batch_size, shuffle=True, num_workers=num_workers)
+    #     val_dataloader = DataLoader(
+    #         val_dataset, batch_size, shuffle=True, num_workers=num_workers)
+
+    #     train(train_dataloader, epoch, model, batch_size,
+    #           val_dataloader, optimizer, criterion)
 
 
 def pre_process(text, tokenizer, embedding):

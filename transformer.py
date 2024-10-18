@@ -74,9 +74,10 @@ best_idx = -1
 loss_record = []
 
 # Evaluate
+print('evaluate')
 metric = evaluate.combine(
     ["rouge", "bleu", "meteor"])
-
+print('finish evaluate')
 # K-Fold Cross-Validation
 for k in range(1, fold_nums+1):
     print(f"Fold {k} / {fold_nums} ...")

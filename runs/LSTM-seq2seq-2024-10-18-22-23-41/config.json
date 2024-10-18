@@ -1,0 +1,1 @@
+{"model_name": "LSTM-seq2seq", "fold_nums": 10, "num_epochs": 100, "max_length": 128, "batch_size": 8, "lr": 0.0001, "device": "cuda", "start_time": "2024-10-18-22-23-41"}

@@ -12,13 +12,13 @@ class rzbDataset(Dataset):
     Parameters:
         folder_path (str): Data folder path, like "./data/"
         k (int): K-Fold Cross-Validation parameter, means "k-th fold as test"
-        mode (str): Dataset type, like "train", "val", "test"
+        mode (str): Dataset type, like "train", "val"
 
     Returns:
         Object: Dataset
     """
 
-    def __init__(self, folder_path, k=-1, mode=["train", "val", "test"], method=lambda x: x):
+    def __init__(self, folder_path, k=-1, mode=["train", "val"], method=lambda x: x):
         super().__init__()
         assert mode == "test" or k >= 0
         self.k = k
@@ -38,10 +38,7 @@ class rzbDataset(Dataset):
     def __load_data(self):
         data = pd.DataFrame(columns=["original", "annotated"])
         file_path = self.folder_path + \
-            self.mode+"/fold_" + str(self.k) + ".json"
-        if self.mode == "test":
-            file_path = self.folder_path + \
-                self.mode+"/test.json"
+            self.mode+"_fold_" + str(self.k) + ".json"
         print("[INFO] Load '"+file_path+"' dataset...")
         data = pd.concat(
             [data, self.__pd_from_json(file_path)], ignore_index=True)
@@ -67,3 +64,12 @@ class rzbDataset(Dataset):
         for i in range(len(col)):
             col[i] = self.method(col[i])
         return col
+
+
+if __name__ == "__main__":
+    dataset = rzbDataset(
+        "data", k=1, mode="train")
+    print(dataset[:5])
+    dataset = rzbDataset(
+        "data", k=1, mode="val")
+    print(dataset[:5])

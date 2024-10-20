@@ -15,14 +15,14 @@ import torch.nn as nn
 
 
 # Parameters
-model_name = "LSTM-seq2seq"
+model_name = "RNN-seq2seq"
 fold_nums = 10
 num_epochs = 50
 max_length = 128
 batch_size = 8
 lr = 1e-4
-hidden_size = 512  # Hidden size for LSTM
-num_layers = 2  # Number of layers for LSTM
+hidden_size = 512  # Hidden size for RNN
+num_layers = 2  # Number of layers for RNN
 device = torch.device(
     "cuda") if torch.cuda.is_available() else torch.device("cpu")
 
@@ -50,19 +50,19 @@ config = {
 with open(f"runs/{model_name.replace('/', '-')}-{now}/config.json", "w") as f:
     json.dump(config, f)
 
-# LSTM-based Seq2Seq Model
-class Seq2SeqLSTM(nn.Module):
+# RNN-based Seq2Seq Model
+class Seq2SeqRNN(nn.Module):
     def __init__(self, vocab_size, embedding_dim, hidden_size, num_layers, max_length):
-        super(Seq2SeqLSTM, self).__init__()
+        super(Seq2SeqRNN, self).__init__()
         self.embedding = nn.Embedding(vocab_size, embedding_dim)
-        self.lstm = nn.LSTM(embedding_dim, hidden_size, num_layers, batch_first=True)
+        self.rnn = nn.RNN(embedding_dim, hidden_size, num_layers, batch_first=True)
         self.fc = nn.Linear(hidden_size, vocab_size)
         self.max_length = max_length
 
     def forward(self, input_ids, attention_mask=None, labels=None):
         embedded = self.embedding(input_ids)
-        lstm_output, _ = self.lstm(embedded)
-        logits = self.fc(lstm_output)
+        rnn_output, _ = self.rnn(embedded)
+        logits = self.fc(rnn_output)
         loss = None
         if labels is not None:
             loss_fn = nn.CrossEntropyLoss(ignore_index=-100)  # ignore padding tokens
@@ -73,9 +73,9 @@ class Seq2SeqLSTM(nn.Module):
 from transformers import AutoTokenizer
 tokenizer = AutoTokenizer.from_pretrained("google/mt5-base")  # still use the MT5 tokenizer
 vocab_size = tokenizer.vocab_size
-embedding_dim = 256  # Embedding dimension for LSTM
+embedding_dim = 256  # Embedding dimension for RNN
 
-model = Seq2SeqLSTM(vocab_size, embedding_dim, hidden_size, num_layers, max_length)
+model = Seq2SeqRNN(vocab_size, embedding_dim, hidden_size, num_layers, max_length)
 model.to(device)
 
 def tokenize_function(sample):
